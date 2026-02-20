@@ -1,0 +1,1043 @@
+<!DOCTYPE html>
+<html lang="my">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>📚 PDF Library with IndexedDB</title>
+    <style>
+        /* ဒီမှာ CSS ကိုထည့်ပါ - အထက်ပါအတိုင်းပါပဲ */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Pyidaungsu', 'Myanmar3', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+
+        .header {
+            background: #1a202c;
+            color: white;
+            padding: 30px;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .header h1 {
+            font-size: 32px;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            color: #cbd5e0;
+            font-size: 18px;
+        }
+
+        .storage-badge {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: linear-gradient(135deg, #48bb78, #38a169);
+            color: white;
+            padding: 10px 20px;
+            border-radius: 50px;
+            font-size: 14px;
+            font-weight: bold;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+
+        .controls {
+            background: #2d3748;
+            padding: 20px;
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap;
+            align-items: center;
+            border-bottom: 2px solid #4a5568;
+        }
+
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 15px;
+            font-weight: 500;
+            transition: all 0.3s;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .btn-primary {
+            background: #4299e1;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #3182ce;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(66, 153, 225, 0.4);
+        }
+
+        .btn-danger {
+            background: #f56565;
+            color: white;
+        }
+
+        .btn-danger:hover {
+            background: #e53e3e;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(229, 62, 62, 0.4);
+        }
+
+        .btn-success {
+            background: #48bb78;
+            color: white;
+        }
+
+        .btn-success:hover {
+            background: #38a169;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(72, 187, 120, 0.4);
+        }
+
+        .storage-info {
+            margin-left: auto;
+            color: white;
+            font-size: 15px;
+            background: #4a5568;
+            padding: 8px 16px;
+            border-radius: 50px;
+        }
+
+        .upload-area {
+            margin: 30px;
+            padding: 50px;
+            border: 3px dashed #4299e1;
+            border-radius: 15px;
+            text-align: center;
+            background: linear-gradient(135deg, #ebf8ff, #bee3f8);
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .upload-area:hover {
+            transform: scale(1.02);
+            background: linear-gradient(135deg, #bee3f8, #90cdf4);
+            border-color: #2c5282;
+        }
+
+        .upload-area i {
+            font-size: 64px;
+            color: #4299e1;
+            margin-bottom: 15px;
+            display: block;
+        }
+
+        .upload-area h3 {
+            font-size: 24px;
+            color: #2d3748;
+            margin-bottom: 10px;
+        }
+
+        .upload-area p {
+            color: #4a5568;
+            font-size: 16px;
+        }
+
+        #fileInput {
+            display: none;
+        }
+
+        .pdf-grid {
+            padding: 30px;
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 25px;
+            background: #f7fafc;
+            max-height: 600px;
+            overflow-y: auto;
+        }
+
+        .pdf-card {
+            background: white;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            transition: all 0.3s;
+            border: 2px solid transparent;
+            animation: fadeIn 0.5s ease;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .pdf-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 12px 24px rgba(0,0,0,0.15);
+            border-color: #4299e1;
+        }
+
+        .pdf-header {
+            background: #4a5568;
+            color: white;
+            padding: 15px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .pdf-header h3 {
+            font-size: 16px;
+            max-width: 180px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .pdf-badge {
+            background: rgba(255,255,255,0.2);
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+        }
+
+        .pdf-preview {
+            height: 250px;
+            background: #2d3748;
+            position: relative;
+            cursor: pointer;
+        }
+
+        .pdf-canvas {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+        }
+
+        .pdf-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.7);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 15px;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+
+        .pdf-card:hover .pdf-overlay {
+            opacity: 1;
+        }
+
+        .pdf-action-btn {
+            width: 45px;
+            height: 45px;
+            border-radius: 50%;
+            border: none;
+            background: white;
+            color: #2d3748;
+            font-size: 20px;
+            cursor: pointer;
+            transition: all 0.2s;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+        }
+
+        .pdf-action-btn:hover {
+            transform: scale(1.15);
+        }
+
+        .pdf-action-btn.view:hover {
+            background: #4299e1;
+            color: white;
+        }
+
+        .pdf-action-btn.delete:hover {
+            background: #f56565;
+            color: white;
+        }
+
+        .pdf-footer {
+            padding: 12px;
+            background: #f7fafc;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 14px;
+            color: #4a5568;
+        }
+
+        .loading {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: white;
+            font-size: 14px;
+            background: rgba(0,0,0,0.8);
+            padding: 8px 16px;
+            border-radius: 20px;
+            z-index: 10;
+        }
+
+        .empty-state {
+            grid-column: 1 / -1;
+            text-align: center;
+            padding: 60px;
+            color: #a0aec0;
+        }
+
+        .empty-state i {
+            font-size: 64px;
+            margin-bottom: 20px;
+            display: block;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 4px;
+            background: #e2e8f0;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #48bb78, #4299e1);
+            transition: width 0.3s;
+        }
+
+        /* Modal Styles */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.95);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .modal.active {
+            display: flex;
+        }
+
+        .modal-content {
+            width: 95%;
+            height: 95%;
+            background: white;
+            border-radius: 15px;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .modal-header {
+            background: #2d3748;
+            color: white;
+            padding: 15px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .modal-header h2 {
+            font-size: 18px;
+            max-width: 500px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .modal-controls {
+            display: flex;
+            gap: 15px;
+            align-items: center;
+        }
+
+        .modal-body {
+            flex: 1;
+            overflow: auto;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background: #1a202c;
+        }
+
+        #modalCanvas {
+            max-width: 100%;
+            max-height: 100%;
+            box-shadow: 0 0 30px rgba(0,0,0,0.5);
+        }
+
+        .page-nav {
+            background: #4299e1;
+            color: white;
+            border: none;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            font-size: 18px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .page-nav:hover:not(:disabled) {
+            background: #3182ce;
+            transform: scale(1.1);
+        }
+
+        .page-nav:disabled {
+            background: #4a5568;
+            cursor: not-allowed;
+            opacity: 0.5;
+        }
+
+        .close-modal {
+            background: #e53e3e;
+            color: white;
+            border: none;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            font-size: 20px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .close-modal:hover {
+            background: #c53030;
+            transform: scale(1.1);
+        }
+
+        /* Toast Notification */
+        .toast {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            background: #2d3748;
+            color: white;
+            padding: 15px 25px;
+            border-radius: 50px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+            transform: translateY(100px);
+            opacity: 0;
+            transition: all 0.3s;
+            z-index: 2000;
+        }
+
+        .toast.show {
+            transform: translateY(0);
+            opacity: 1;
+        }
+
+        .toast.success {
+            background: #48bb78;
+        }
+
+        .toast.error {
+            background: #f56565;
+        }
+
+        .toast.info {
+            background: #4299e1;
+        }
+    </style>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📚 PDF Library with IndexedDB</h1>
+            <p>IndexedDB ကိုသုံးပြီး PDF ဖိုင်များသိမ်းဆည်းခြင်း</p>
+            <div class="storage-badge" id="storageBadge">စုစုပေါင်း: 0 MB</div>
+        </div>
+
+        <div class="controls">
+            <button class="btn btn-primary" id="uploadBtn">
+                📤 PDF ဖိုင်များတင်ရန်
+            </button>
+            <button class="btn btn-danger" id="clearAllBtn">
+                🗑️ အားလုံးရှင်းရန်
+            </button>
+            <span class="storage-info" id="storageInfo">
+                ဖိုင် 0 ခု
+            </span>
+        </div>
+
+        <div class="upload-area" id="uploadArea">
+            <i>📄</i>
+            <h3>PDF ဖိုင်များဆွဲချပါ သို့မဟုတ် နှိပ်ပါ</h3>
+            <p>ဖိုင်မျိုးစုံတစ်ပြိုင်နက်ရွေးချယ်နိုင်ပါသည်</p>
+            <input type="file" id="fileInput" accept=".pdf" multiple>
+        </div>
+
+        <div class="progress-bar">
+            <div class="progress-fill" id="progressFill" style="width: 0%"></div>
+        </div>
+
+        <div class="pdf-grid" id="pdfGrid">
+            <div class="empty-state">
+                <i>📄</i>
+                <h3>PDF ဖိုင်မရှိသေးပါ</h3>
+                <p>အပေါ်က upload နေရာမှတစ်ဆင့် PDF ဖိုင်များတင်ပါ</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal for viewing PDF -->
+    <div class="modal" id="pdfModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="modalTitle"></h2>
+                <div class="modal-controls">
+                    <button class="page-nav" id="modalPrevPage" disabled>◀</button>
+                    <span class="page-info" id="modalPageInfo">1 / 1</span>
+                    <button class="page-nav" id="modalNextPage" disabled>▶</button>
+                    <button class="close-modal" id="closeModal">✕</button>
+                </div>
+            </div>
+            <div class="modal-body">
+                <canvas id="modalCanvas"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast notification -->
+    <div class="toast" id="toast"></div>
+
+    <script>
+        // PDF.js worker setup
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
+
+        // IndexedDB setup
+        const DB_NAME = 'PDFLibrary';
+        const DB_VERSION = 1;
+        const STORE_NAME = 'pdfs';
+
+        let db;
+        let pdfLibrary = [];
+        let currentModalPdf = null;
+        let currentModalPage = 1;
+
+        // DOM elements
+        const fileInput = document.getElementById('fileInput');
+        const pdfGrid = document.getElementById('pdfGrid');
+        const uploadArea = document.getElementById('uploadArea');
+        const uploadBtn = document.getElementById('uploadBtn');
+        const clearAllBtn = document.getElementById('clearAllBtn');
+        const storageInfo = document.getElementById('storageInfo');
+        const storageBadge = document.getElementById('storageBadge');
+        const progressFill = document.getElementById('progressFill');
+        const toast = document.getElementById('toast');
+
+        // Modal elements
+        const pdfModal = document.getElementById('pdfModal');
+        const modalCanvas = document.getElementById('modalCanvas');
+        const modalTitle = document.getElementById('modalTitle');
+        const modalPageInfo = document.getElementById('modalPageInfo');
+        const modalPrevPage = document.getElementById('modalPrevPage');
+        const modalNextPage = document.getElementById('modalNextPage');
+        const closeModal = document.getElementById('closeModal');
+
+        // Initialize IndexedDB
+        function initDB() {
+            return new Promise((resolve, reject) => {
+                const request = indexedDB.open(DB_NAME, DB_VERSION);
+
+                request.onerror = () => reject(request.error);
+                request.onsuccess = () => {
+                    db = request.result;
+                    resolve(db);
+                };
+
+                request.onupgradeneeded = (event) => {
+                    const db = event.target.result;
+                    if (!db.objectStoreNames.contains(STORE_NAME)) {
+                        const store = db.createObjectStore(STORE_NAME, { keyPath: 'id' });
+                        store.createIndex('name', 'name', { unique: false });
+                        store.createIndex('date', 'date', { unique: false });
+                    }
+                };
+            });
+        }
+
+        // Save PDF to IndexedDB
+        async function savePDFToDB(pdfData) {
+            return new Promise((resolve, reject) => {
+                const transaction = db.transaction([STORE_NAME], 'readwrite');
+                const store = transaction.objectStore(STORE_NAME);
+                
+                const request = store.put({
+                    id: pdfData.id,
+                    name: pdfData.name,
+                    date: pdfData.date,
+                    size: pdfData.size,
+                    pages: pdfData.pages,
+                    data: pdfData.data
+                });
+
+                request.onsuccess = () => resolve();
+                request.onerror = () => reject(request.error);
+            });
+        }
+
+        // Get all PDFs from IndexedDB
+        async function getAllPDFsFromDB() {
+            return new Promise((resolve, reject) => {
+                const transaction = db.transaction([STORE_NAME], 'readonly');
+                const store = transaction.objectStore(STORE_NAME);
+                const request = store.getAll();
+
+                request.onsuccess = () => {
+                    const pdfs = request.result;
+                    pdfLibrary = pdfs.map(pdf => ({
+                        ...pdf,
+                        currentPage: 1
+                    }));
+                    resolve(pdfLibrary);
+                };
+                request.onerror = () => reject(request.error);
+            });
+        }
+
+        // Delete PDF from IndexedDB
+        async function deletePDFFromDB(id) {
+            return new Promise((resolve, reject) => {
+                const transaction = db.transaction([STORE_NAME], 'readwrite');
+                const store = transaction.objectStore(STORE_NAME);
+                const request = store.delete(id);
+
+                request.onsuccess = () => resolve();
+                request.onerror = () => reject(request.error);
+            });
+        }
+
+        // Clear all PDFs from IndexedDB
+        async function clearAllPDFsFromDB() {
+            return new Promise((resolve, reject) => {
+                const transaction = db.transaction([STORE_NAME], 'readwrite');
+                const store = transaction.objectStore(STORE_NAME);
+                const request = store.clear();
+
+                request.onsuccess = () => resolve();
+                request.onerror = () => reject(request.error);
+            });
+        }
+
+        // Calculate total size
+        function calculateTotalSize() {
+            return pdfLibrary.reduce((total, item) => total + (item.size || 0), 0);
+        }
+
+        // Format size
+        function formatSize(bytes) {
+            if (bytes === 0) return '0 Bytes';
+            const k = 1024;
+            const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+        }
+
+        // Show toast notification
+        function showToast(message, type = 'info') {
+            toast.textContent = message;
+            toast.className = `toast show ${type}`;
+            setTimeout(() => {
+                toast.classList.remove('show');
+            }, 3000);
+        }
+
+        // Update storage info
+        function updateStorageInfo() {
+            const totalSize = calculateTotalSize();
+            const fileCount = pdfLibrary.length;
+            
+            storageInfo.textContent = `ဖိုင် ${fileCount} ခု`;
+            storageBadge.textContent = `စုစုပေါင်း: ${formatSize(totalSize)}`;
+            
+            // Update progress bar (max 500MB for IndexedDB)
+            const percentage = (totalSize / (500 * 1024 * 1024)) * 100;
+            progressFill.style.width = `${Math.min(percentage, 100)}%`;
+        }
+
+        // Load PDF file
+        async function loadPDF(file) {
+            return new Promise((resolve, reject) => {
+                const fileReader = new FileReader();
+                
+                fileReader.onload = async function() {
+                    try {
+                        const arrayBuffer = this.result;
+                        const typedarray = new Uint8Array(arrayBuffer);
+                        const pdf = await pdfjsLib.getDocument(typedarray).promise;
+                        
+                        const pdfData = {
+                            id: Date.now() + '-' + Math.random().toString(36).substr(2, 9),
+                            name: file.name,
+                            date: new Date().toLocaleString(),
+                            size: file.size,
+                            pages: pdf.numPages,
+                            data: Array.from(new Uint8Array(arrayBuffer)), // Convert to array for storage
+                            currentPage: 1
+                        };
+                        
+                        resolve(pdfData);
+                    } catch (error) {
+                        reject(error);
+                    }
+                };
+
+                fileReader.readAsArrayBuffer(file);
+            });
+        }
+
+        // Render PDF page
+        async function renderPDF(pdfData, canvasId, pageNum) {
+            const canvas = document.getElementById(canvasId);
+            if (!canvas) return;
+
+            const ctx = canvas.getContext('2d');
+            const loading = canvas.parentElement.querySelector('.loading');
+            
+            if (loading) loading.style.display = 'block';
+
+            try {
+                // Convert data back to Uint8Array
+                const uint8Array = new Uint8Array(pdfData.data);
+                const pdf = await pdfjsLib.getDocument(uint8Array).promise;
+                
+                const page = await pdf.getPage(pageNum);
+                
+                // Calculate scale to fit container
+                const container = canvas.parentElement;
+                const scale = Math.min(
+                    (container.clientWidth - 20) / page.getViewport().width,
+                    (container.clientHeight - 20) / page.getViewport().height
+                ) * 0.9;
+
+                const viewport = page.getViewport({ scale });
+                
+                canvas.width = viewport.width;
+                canvas.height = viewport.height;
+
+                await page.render({
+                    canvasContext: ctx,
+                    viewport: viewport
+                }).promise;
+
+                if (loading) loading.style.display = 'none';
+            } catch (error) {
+                console.error('Error rendering PDF:', error);
+                if (loading) loading.style.display = 'none';
+            }
+        }
+
+        // Create PDF card
+        function createPDFCard(pdfData) {
+            const canvasId = `canvas-${pdfData.id}`;
+            
+            return `
+                <div class="pdf-card" data-id="${pdfData.id}">
+                    <div class="pdf-header">
+                        <h3 title="${pdfData.name}">${pdfData.name}</h3>
+                        <span class="pdf-badge">${pdfData.pages} မျက်နှာ</span>
+                    </div>
+                    <div class="pdf-preview">
+                        <canvas id="${canvasId}" class="pdf-canvas"></canvas>
+                        <div class="loading">ဖွင့်နေသည်...</div>
+                        <div class="pdf-overlay">
+                            <button class="pdf-action-btn view" onclick="viewPDF('${pdfData.id}')">👁️</button>
+                            <button class="pdf-action-btn delete" onclick="deletePDF('${pdfData.id}')">🗑️</button>
+                        </div>
+                    </div>
+                    <div class="pdf-footer">
+                        <span>📅 ${pdfData.date}</span>
+                        <span>${formatSize(pdfData.size)}</span>
+                    </div>
+                </div>
+            `;
+        }
+
+        // Update grid display
+        async function updateGrid() {
+            if (pdfLibrary.length === 0) {
+                pdfGrid.innerHTML = `
+                    <div class="empty-state">
+                        <i>📄</i>
+                        <h3>PDF ဖိုင်မရှိသေးပါ</h3>
+                        <p>အပေါ်က upload နေရာမှတစ်ဆင့် PDF ဖိုင်များတင်ပါ</p>
+                    </div>
+                `;
+                return;
+            }
+
+            let gridHTML = '';
+            pdfLibrary.forEach(pdfData => {
+                gridHTML += createPDFCard(pdfData);
+            });
+            
+            pdfGrid.innerHTML = gridHTML;
+
+            // Render all PDFs
+            for (const pdfData of pdfLibrary) {
+                await renderPDF(pdfData, `canvas-${pdfData.id}`, 1);
+            }
+        }
+
+        // View PDF in modal
+        window.viewPDF = async function(id) {
+            const pdfData = pdfLibrary.find(p => p.id === id);
+            if (!pdfData) return;
+
+            currentModalPdf = pdfData;
+            currentModalPage = 1;
+            
+            modalTitle.textContent = pdfData.name;
+            pdfModal.classList.add('active');
+            
+            await renderModalPage(1);
+        };
+
+        // Render modal page
+        async function renderModalPage(pageNum) {
+            if (!currentModalPdf) return;
+
+            try {
+                const uint8Array = new Uint8Array(currentModalPdf.data);
+                const pdf = await pdfjsLib.getDocument(uint8Array).promise;
+                
+                const page = await pdf.getPage(pageNum);
+                
+                const container = document.querySelector('.modal-body');
+                const scale = Math.min(
+                    (container.clientWidth - 40) / page.getViewport().width,
+                    (container.clientHeight - 40) / page.getViewport().height
+                ) * 0.9;
+
+                const viewport = page.getViewport({ scale });
+                
+                modalCanvas.width = viewport.width;
+                modalCanvas.height = viewport.height;
+
+                await page.render({
+                    canvasContext: modalCanvas.getContext('2d'),
+                    viewport: viewport
+                }).promise;
+
+                modalPageInfo.textContent = `${pageNum} / ${currentModalPdf.pages}`;
+                modalPrevPage.disabled = pageNum <= 1;
+                modalNextPage.disabled = pageNum >= currentModalPdf.pages;
+                
+                currentModalPage = pageNum;
+            } catch (error) {
+                console.error('Error rendering modal page:', error);
+            }
+        }
+
+        // Delete PDF
+        window.deletePDF = async function(id) {
+            if (confirm('ဒီ PDF ဖိုင်ကို ဖျက်မှာသေချာပါသလား?')) {
+                try {
+                    await deletePDFFromDB(id);
+                    pdfLibrary = pdfLibrary.filter(p => p.id !== id);
+                    await updateGrid();
+                    updateStorageInfo();
+                    showToast('PDF ဖိုင်ဖျက်ပြီးပါပြီ', 'success');
+                } catch (error) {
+                    console.error('Error deleting PDF:', error);
+                    showToast('PDF ဖိုင်ဖျက်ရာတွင် အမှားရှိနေပါသည်', 'error');
+                }
+            }
+        };
+
+        // Handle file upload
+        async function handleFiles(files) {
+            const pdfFiles = Array.from(files).filter(f => f.type === 'application/pdf');
+            
+            if (pdfFiles.length === 0) {
+                showToast('PDF ဖိုင်များသာရွေးချယ်ပါ', 'error');
+                return;
+            }
+
+            // Check total size (500MB limit for IndexedDB)
+            const totalNewSize = pdfFiles.reduce((sum, file) => sum + file.size, 0);
+            const currentSize = calculateTotalSize();
+            
+            if (currentSize + totalNewSize > 500 * 1024 * 1024) {
+                showToast('စုစုပေါင်း 500MB ထက်မပိုနိုင်ပါ', 'error');
+                return;
+            }
+
+            // Show loading state
+            pdfGrid.innerHTML = '<div class="empty-state">PDF များဖွင့်နေသည်... ⏳</div>';
+
+            let successCount = 0;
+
+            // Load and save each PDF
+            for (const file of pdfFiles) {
+                try {
+                    const pdfData = await loadPDF(file);
+                    await savePDFToDB(pdfData);
+                    pdfLibrary.push(pdfData);
+                    successCount++;
+                } catch (error) {
+                    console.error(`Error loading ${file.name}:`, error);
+                }
+            }
+
+            // Update display
+            await updateGrid();
+            updateStorageInfo();
+            
+            showToast(`PDF ဖိုင် ${successCount} ခုတင်ပြီးပါပြီ`, 'success');
+        }
+
+        // Event Listeners
+        uploadBtn.addEventListener('click', () => {
+            fileInput.click();
+        });
+
+        fileInput.addEventListener('change', async (e) => {
+            await handleFiles(e.target.files);
+            fileInput.value = '';
+        });
+
+        uploadArea.addEventListener('click', () => {
+            fileInput.click();
+        });
+
+        uploadArea.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadArea.style.background = 'linear-gradient(135deg, #bee3f8, #90cdf4)';
+        });
+
+        uploadArea.addEventListener('dragleave', (e) => {
+            e.preventDefault();
+            uploadArea.style.background = 'linear-gradient(135deg, #ebf8ff, #bee3f8)';
+        });
+
+        uploadArea.addEventListener('drop', async (e) => {
+            e.preventDefault();
+            uploadArea.style.background = 'linear-gradient(135deg, #ebf8ff, #bee3f8)';
+            
+            const files = e.dataTransfer.files;
+            await handleFiles(files);
+        });
+
+        clearAllBtn.addEventListener('click', async () => {
+            if (pdfLibrary.length === 0) return;
+            
+            if (confirm(`PDF ဖိုင် ${pdfLibrary.length} ခုလုံးကိုဖျက်မှာသေချာပါသလား?`)) {
+                try {
+                    await clearAllPDFsFromDB();
+                    pdfLibrary = [];
+                    await updateGrid();
+                    updateStorageInfo();
+                    showToast('PDF ဖိုင်အားလုံးဖျက်ပြီးပါပြီ', 'success');
+                } catch (error) {
+                    console.error('Error clearing PDFs:', error);
+                    showToast('PDF ဖိုင်များဖျက်ရာတွင် အမှားရှိနေပါသည်', 'error');
+                }
+            }
+        });
+
+        // Modal navigation
+        modalPrevPage.addEventListener('click', async () => {
+            if (currentModalPage > 1) {
+                await renderModalPage(currentModalPage - 1);
+            }
+        });
+
+        modalNextPage.addEventListener('click', async () => {
+            if (currentModalPage < currentModalPdf.pages) {
+                await renderModalPage(currentModalPage + 1);
+            }
+        });
+
+        closeModal.addEventListener('click', () => {
+            pdfModal.classList.remove('active');
+        });
+
+        pdfModal.addEventListener('click', (e) => {
+            if (e.target === pdfModal) {
+                pdfModal.classList.remove('active');
+            }
+        });
+
+        // Keyboard navigation
+        document.addEventListener('keydown', (e) => {
+            if (pdfModal.classList.contains('active')) {
+                if (e.key === 'Escape') {
+                    pdfModal.classList.remove('active');
+                } else if (e.key === 'ArrowLeft') {
+                    modalPrevPage.click();
+                } else if (e.key === 'ArrowRight') {
+                    modalNextPage.click();
+                }
+            }
+        });
+
+        // Handle window resize
+        let resizeTimeout;
+        window.addEventListener('resize', () => {
+            clearTimeout(resizeTimeout);
+            resizeTimeout = setTimeout(() => {
+                if (pdfModal.classList.contains('active') && currentModalPdf) {
+                    renderModalPage(currentModalPage);
+                } else {
+                    pdfLibrary.forEach(pdfData => {
+                        renderPDF(pdfData, `canvas-${pdfData.id}`, pdfData.currentPage || 1);
+                    });
+                }
+            }, 200);
+        });
+
+        // Initialize
+        async function init() {
+            try {
+                await initDB();
+                await getAllPDFsFromDB();
+                await updateGrid();
+                updateStorageInfo();
+                showToast('PDF Library အဆင်သင့်ဖြစ်ပါပြီ', 'success');
+            } catch (error) {
+                console.error('Error initializing:', error);
+                showToast('အစပြုရာတွင် အမှားရှိနေပါသည်', 'error');
+            }
+        }
+
+        init();
+    </script>
+</body>
+</html>
